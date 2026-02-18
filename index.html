@@ -98,6 +98,7 @@ let foodTimer = 0, foodInterval = 120;
 
 // ─── Input ─────────────────────────────────────────────────────────────────
 function handleJump() {
+  initMusic(); // start music on first interaction (browser AudioContext requirement)
   if (state === 'title') { state = 'playing'; return; }
   if (state === 'dead') return;
   if (state === 'gameover') { resetGame(); return; }
@@ -616,12 +617,15 @@ function spawnCollectParticles(x, y, color) {
 }
 
 function spawnHitParticles(x, y) {
+  // Golden stars — no blood!
   for (let i = 0; i < 10; i++) {
+    const angle = (Math.PI * 2 / 10) * i;
     particles.push({
-      x, y, vx: rand(-4, 4), vy: rand(-5, -1),
-      life: 30, maxLife: 30, color: '#ff4444', r: rand(4, 9), type: 'circle'
+      x, y, vx: Math.cos(angle) * rand(2, 5), vy: Math.sin(angle) * rand(2, 5) - 3,
+      life: 35, maxLife: 35, color: '#f0c840', r: rand(4, 8), type: 'star'
     });
   }
+  particles.push({ x, y: y - 10, vx: 0, vy: -2.5, life: 50, maxLife: 50, color: '#ffdd44', type: 'text', text: 'Ay!' });
 }
 
 function spawnJumpPuff() {
@@ -695,7 +699,8 @@ const FOOD_TYPES = [
 function spawnObstacle() {
   const t = CACTUS_TYPES[randInt(0, CACTUS_TYPES.length - 1)];
   const h = t.h + randInt(0, 20);
-  obstacles.push({ ...t, h, x: W + 20, y: GROUND });
+  // y is the cactus base — must sit at the player's foot level (GROUND + player.h)
+  obstacles.push({ ...t, h, x: W + 20, y: GROUND + player.h });
 }
 
 function spawnFood() {
@@ -921,9 +926,9 @@ function loop() {
   // Draw player
   drawPlayer();
 
-  // Flash
+  // Friendly golden flash (no blood/red)
   if (flashTimer > 0) {
-    ctx.fillStyle = `rgba(255,50,50,${flashTimer / 20 * 0.35})`;
+    ctx.fillStyle = `rgba(255,220,50,${flashTimer / 20 * 0.18})`;
     ctx.fillRect(0, 0, W, H);
   }
 
@@ -951,6 +956,116 @@ function drawLayer(l) {
   l.draw(l.x % W);
   l.draw((l.x % W) + W);
   l.draw((l.x % W) - W);
+}
+
+// ─── Music (Web Audio API — mariachi style) ────────────────────────────────
+let audioCtx = null;
+let musicLoopTimer = null;
+
+// BPM = 168 (lively mariachi tempo)
+const BPM = 168;
+const BEAT = 60 / BPM;
+
+// La Raspa-inspired lead melody [Hz, beats]
+const MELODY = [
+  [659,0.5],[587,0.5],[523,0.5],[587,0.5],
+  [659,0.5],[659,0.5],[659,1],
+  [587,0.5],[587,0.5],[587,1],
+  [659,0.5],[784,0.5],[784,1],
+  [659,0.5],[587,0.5],[523,0.5],[587,0.5],
+  [659,0.5],[659,0.5],[659,0.5],[659,0.5],
+  [587,0.5],[587,0.5],[659,0.5],[587,0.5],
+  [523,2],
+  // Second phrase
+  [523,0.5],[587,0.5],[659,0.5],[784,0.5],
+  [880,0.5],[784,0.5],[659,0.5],[523,0.5],
+  [659,0.5],[523,0.5],[440,0.5],[392,0.5],
+  [440,2],
+  [440,0.5],[523,0.5],[587,0.5],[659,0.5],
+  [784,1],[659,1],
+  [587,0.5],[523,0.5],[587,0.5],[523,0.5],
+  [440,2],
+];
+
+// Bass / vihuela strum pattern [Hz, beats]
+const BASS = [
+  [262,1],[392,0.5],[392,0.5],
+  [262,1],[392,0.5],[392,0.5],
+  [294,1],[440,0.5],[440,0.5],
+  [294,1],[440,0.5],[440,0.5],
+  [262,1],[392,0.5],[392,0.5],
+  [262,1],[392,0.5],[392,0.5],
+  [294,1],[392,0.5],[392,0.5],
+  [262,2],
+  [196,1],[294,0.5],[294,0.5],
+  [196,1],[294,0.5],[294,0.5],
+  [220,1],[330,0.5],[330,0.5],
+  [220,2],
+  [196,1],[294,0.5],[294,0.5],
+  [196,1],[294,0.5],[294,0.5],
+  [220,1],[294,0.5],[294,0.5],
+  [196,2],
+];
+
+function playNote(freq, startTime, durationBeats, type, vol) {
+  if (!audioCtx || freq === 0) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.type = type;
+  osc.frequency.value = freq;
+  const dur = durationBeats * BEAT;
+  gain.gain.setValueAtTime(0, startTime);
+  gain.gain.linearRampToValueAtTime(vol, startTime + 0.015);
+  gain.gain.exponentialRampToValueAtTime(0.0001, startTime + dur - 0.01);
+  osc.start(startTime);
+  osc.stop(startTime + dur);
+}
+
+function scheduleMusicLoop() {
+  if (!audioCtx) return;
+  const start = audioCtx.currentTime + 0.05;
+
+  // Lead melody — triangle wave (bright, mariachi trumpet-ish)
+  let t = start;
+  for (const [freq, dur] of MELODY) {
+    playNote(freq, t, dur, 'triangle', 0.13);
+    // Slight harmony a third above
+    playNote(freq * 1.25, t, dur, 'triangle', 0.04);
+    t += dur * BEAT;
+  }
+
+  // Bass / strum — sine wave
+  let bt = start;
+  for (const [freq, dur] of BASS) {
+    playNote(freq, bt, dur, 'sine', 0.11);
+    bt += dur * BEAT;
+  }
+
+  // Percussion — short clicks on beats for rhythm
+  const totalMelodyBeats = MELODY.reduce((s, [, d]) => s + d, 0);
+  for (let b = 0; b < totalMelodyBeats; b += 0.5) {
+    const bufLen = audioCtx.sampleRate * 0.04;
+    const buf = audioCtx.createBuffer(1, bufLen, audioCtx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufLen; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufLen * 0.15));
+    const src = audioCtx.createBufferSource();
+    const g = audioCtx.createGain();
+    src.buffer = buf;
+    src.connect(g); g.connect(audioCtx.destination);
+    g.gain.value = b % 1 === 0 ? 0.07 : 0.03; // stronger on main beats
+    src.start(start + b * BEAT);
+  }
+
+  const totalDur = totalMelodyBeats * BEAT;
+  musicLoopTimer = setTimeout(scheduleMusicLoop, (totalDur - 0.25) * 1000);
+}
+
+function initMusic() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  scheduleMusicLoop();
 }
 
 // Start
