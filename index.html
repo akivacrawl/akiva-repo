@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sabrina's Journey</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #1a0a00;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      font-family: 'Georgia', serif;
+      overflow: hidden;
+    }
+    h1 {
+      color: #f5c842;
+      font-size: 2rem;
+      text-shadow: 2px 2px 6px #a0640a, 0 0 20px #f5a800;
+      letter-spacing: 3px;
+      margin-bottom: 8px;
+    }
+    #canvas {
+      border: 3px solid #c8852a;
+      border-radius: 8px;
+      box-shadow: 0 0 30px #f5a80066;
+      cursor: pointer;
+      display: block;
+    }
+    #ui {
+      display: flex;
+      gap: 30px;
+      margin-top: 8px;
+      color: #f5c842;
+      font-size: 1rem;
+      letter-spacing: 1px;
+      text-shadow: 1px 1px 3px #000;
+    }
+    #instructions {
+      color: #f5d88a;
+      font-size: 0.78rem;
+      margin-top: 4px;
+      letter-spacing: 1px;
+      opacity: 0.85;
+    }
+  </style>
+</head>
+<body>
+  <h1>🌵 Sabrina's Journey 🌵</h1>
+  <canvas id="canvas" width="900" height="320"></canvas>
+  <div id="ui">
+    <span>Score: <span id="scoreDisplay">0</span></span>
+    <span>Best: <span id="bestDisplay">0</span></span>
+    <span>Lives: <span id="livesDisplay">❤️❤️❤️</span></span>
+  </div>
+  <div id="instructions">SPACE / Click / Tap to jump &nbsp;|&nbsp; Double jump available!</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+
+// ─── Game State ────────────────────────────────────────────────────────────
+const GROUND = H - 56;
+let state = 'title'; // title | playing | dead | gameover
+let score = 0, best = 0, lives = 3;
+let frame = 0, speed = 4.5, gameTime = 0;
+let flashTimer = 0;
+let scoreMultiplier = 1;
+
+// ─── Player ────────────────────────────────────────────────────────────────
+const player = {
+  x: 110, y: GROUND, w: 56, h: 44,
+  vy: 0, jumps: 0, maxJumps: 2,
+  invincible: 0, runFrame: 0, runTimer: 0,
+  dead: false,
+  get bottom() { return this.y + this.h; },
+  get hitbox() {
+    return { x: this.x + 8, y: this.y + 6, w: this.w - 16, h: this.h - 6 };
+  }
+};
+
+// ─── Parallax Layers ───────────────────────────────────────────────────────
+const layers = [
+  { x: 0, speed: 0.2, draw: drawMountains },
+  { x: 0, speed: 0.5, draw: drawDunes },
+];
+
+// ─── Obstacles & Food ──────────────────────────────────────────────────────
+let obstacles = [];
+let foods = [];
+let particles = [];
+let spawnTimer = 0, spawnInterval = 90;
+let foodTimer = 0, foodInterval = 120;
+
+// ─── Input ─────────────────────────────────────────────────────────────────
+function handleJump() {
+  if (state === 'title') { state = 'playing'; return; }
+  if (state === 'dead') return;
+  if (state === 'gameover') { resetGame(); return; }
+  if (player.jumps < player.maxJumps) {
+    player.vy = -11.5;
+    player.jumps++;
+    spawnJumpPuff();
+  }
+}
+window.addEventListener('keydown', e => { if (e.code === 'Space') { e.preventDefault(); handleJump(); } });
+canvas.addEventListener('click', handleJump);
+canvas.addEventListener('touchstart', e => { e.preventDefault(); handleJump(); }, { passive: false });
+
+// ─── Helpers ───────────────────────────────────────────────────────────────
+function rand(min, max) { return Math.random() * (max - min) + min; }
+function randInt(min, max) { return Math.floor(rand(min, max + 1)); }
+function collides(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x &&
+         a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+// ─── Drawing: Background ───────────────────────────────────────────────────
+function drawSky() {
+  const grad = ctx.createLinearGradient(0, 0, 0, GROUND);
+  grad.addColorStop(0, '#3a7bd5');
+  grad.addColorStop(0.45, '#e8a84c');
+  grad.addColorStop(0.8, '#f0c97a');
+  grad.addColorStop(1, '#d4944a');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, GROUND);
+
+  // Sun
+  ctx.save();
+  ctx.shadowBlur = 30;
+  ctx.shadowColor = '#fff5aa';
+  ctx.fillStyle = '#ffe566';
+  ctx.beginPath(); ctx.arc(760, 58, 38, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#fff8b0';
+  ctx.beginPath(); ctx.arc(760, 58, 26, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+
+  // Wavy heat shimmer lines
+  ctx.strokeStyle = 'rgba(255,220,100,0.12)';
+  ctx.lineWidth = 1.5;
+  for (let i = 0; i < 4; i++) {
+    const y = GROUND - 20 - i * 18;
+    ctx.beginPath();
+    for (let x = 0; x <= W; x += 8) {
+      ctx.lineTo(x, y + Math.sin((x / 40) + frame * 0.04 + i) * 3);
+    }
+    ctx.stroke();
+  }
+}
+
+function drawMountains(offsetX) {
+  ctx.fillStyle = '#c4773a';
+  const peaks = [
+    [0,   200, 160, 80],
+    [130, 210, 130, 60],
+    [240, 195, 180, 90],
+    [390, 205, 150, 70],
+    [500, 190, 200, 100],
+    [660, 200, 170, 85],
+    [800, 195, 150, 75],
+    [920, 205, 140, 65],
+  ];
+  for (const [bx, by, bw, bh] of peaks) {
+    const rx = ((bx + offsetX) % (W + bw)) - bw / 2;
+    ctx.beginPath();
+    ctx.moveTo(rx, by);
+    ctx.lineTo(rx + bw / 2, by - bh);
+    ctx.lineTo(rx + bw, by);
+    ctx.closePath(); ctx.fill();
+  }
+}
+
+function drawDunes(offsetX) {
+  ctx.fillStyle = '#e8b86a';
+  ctx.beginPath();
+  ctx.moveTo(0, GROUND);
+  let x = 0;
+  while (x <= W + 120) {
+    const rx = ((x + offsetX * 2) % (W + 120));
+    ctx.quadraticCurveTo(rx - 60, GROUND - 28, rx, GROUND - 2);
+    x += 120;
+  }
+  ctx.lineTo(W, GROUND); ctx.lineTo(0, GROUND); ctx.closePath(); ctx.fill();
+}
+
+function drawGround() {
+  // Main sandy ground
+  const grad = ctx.createLinearGradient(0, GROUND, 0, H);
+  grad.addColorStop(0, '#d4a040');
+  grad.addColorStop(0.3, '#c4902e');
+  grad.addColorStop(1, '#a07020');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, GROUND, W, H - GROUND);
+
+  // Ground texture lines
+  ctx.strokeStyle = 'rgba(180,130,30,0.5)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 5; i++) {
+    const y = GROUND + 4 + i * 6;
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+
+  // Scrolling pebbles
+  ctx.fillStyle = '#b8860b';
+  const pebbles = [40, 120, 200, 300, 420, 540, 660, 780, 860];
+  for (const px of pebbles) {
+    const rx = ((px - frame * speed * 0.8) % W + W) % W;
+    ctx.beginPath(); ctx.ellipse(rx, GROUND + 8, 4, 2, 0, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
+// ─── Drawing: Player (Blonde Chihuahua) ────────────────────────────────────
+function drawPlayer() {
+  const { x, y, invincible, runFrame } = player;
+  if (invincible > 0 && Math.floor(invincible / 4) % 2 === 0) return; // blink
+
+  ctx.save();
+  ctx.translate(x + player.w / 2, y + player.h / 2);
+
+  const fur = '#e8c870';
+  const furDark = '#c8a040';
+  const furLight = '#f5dfa0';
+  const skinPink = '#f0b8a8';
+  const noseColor = '#402010';
+  const eyeColor = '#1a0a00';
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.beginPath();
+  ctx.ellipse(0, player.h / 2 - 4, 22, 5, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Tail (wagging)
+  const tailWag = Math.sin(frame * 0.3) * 18;
+  ctx.strokeStyle = fur;
+  ctx.lineWidth = 6;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(-18, -4);
+  ctx.quadraticCurveTo(-30, -16 + tailWag * 0.5, -24 + tailWag * 0.3, -26 + tailWag);
+  ctx.stroke();
+  ctx.strokeStyle = furLight;
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  // Body
+  ctx.fillStyle = fur;
+  ctx.beginPath();
+  ctx.ellipse(0, 2, 22, 14, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Body belly patch
+  ctx.fillStyle = furLight;
+  ctx.beginPath();
+  ctx.ellipse(4, 4, 12, 9, 0.2, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Legs (animated running)
+  const legColors = [furDark, fur];
+  const legAngles = state === 'playing' ? [
+    [Math.sin(frame * 0.35) * 28, Math.sin(frame * 0.35 + Math.PI) * 28],   // front pair
+    [Math.sin(frame * 0.35 + Math.PI * 0.5) * 28, Math.sin(frame * 0.35 + Math.PI * 1.5) * 28], // back pair
+  ] : [[0, 0], [0, 0]];
+
+  // Back legs
+  for (let i = 0; i < 2; i++) {
+    const lx = -10 + i * 4;
+    const angle = legAngles[1][i] * Math.PI / 180;
+    ctx.save();
+    ctx.translate(lx, 10);
+    ctx.rotate(angle);
+    ctx.fillStyle = furDark;
+    ctx.beginPath();
+    ctx.roundRect(-3, 0, 6, 16, 3);
+    ctx.fill();
+    // Paw
+    ctx.fillStyle = skinPink;
+    ctx.beginPath();
+    ctx.ellipse(0, 16, 5, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+  // Front legs
+  for (let i = 0; i < 2; i++) {
+    const lx = 8 + i * 4;
+    const angle = legAngles[0][i] * Math.PI / 180;
+    ctx.save();
+    ctx.translate(lx, 8);
+    ctx.rotate(angle);
+    ctx.fillStyle = fur;
+    ctx.beginPath();
+    ctx.roundRect(-3, 0, 6, 14, 3);
+    ctx.fill();
+    ctx.fillStyle = skinPink;
+    ctx.beginPath();
+    ctx.ellipse(0, 14, 4, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Head
+  ctx.fillStyle = fur;
+  ctx.beginPath();
+  ctx.arc(16, -8, 18, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Ears (big chihuahua ears)
+  // Left ear
+  ctx.fillStyle = furDark;
+  ctx.beginPath();
+  ctx.moveTo(8, -20);
+  ctx.lineTo(0, -44);
+  ctx.lineTo(16, -22);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = skinPink;
+  ctx.beginPath();
+  ctx.moveTo(9, -21);
+  ctx.lineTo(3, -40);
+  ctx.lineTo(15, -23);
+  ctx.closePath(); ctx.fill();
+
+  // Right ear
+  ctx.fillStyle = furDark;
+  ctx.beginPath();
+  ctx.moveTo(22, -20);
+  ctx.lineTo(34, -44);
+  ctx.lineTo(26, -22);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = skinPink;
+  ctx.beginPath();
+  ctx.moveTo(23, -21);
+  ctx.lineTo(32, -40);
+  ctx.lineTo(25, -23);
+  ctx.closePath(); ctx.fill();
+
+  // Face: cheeks
+  ctx.fillStyle = furLight;
+  ctx.beginPath();
+  ctx.arc(16, -6, 14, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Eyes
+  ctx.fillStyle = eyeColor;
+  ctx.beginPath(); ctx.arc(11, -13, 5, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(22, -13, 5, 0, Math.PI * 2); ctx.fill();
+  // Eye shine
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(13, -15, 2, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(24, -15, 2, 0, Math.PI * 2); ctx.fill();
+  // Eye sparkle
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.beginPath(); ctx.arc(10, -12, 1, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(21, -12, 1, 0, Math.PI * 2); ctx.fill();
+
+  // Nose
+  ctx.fillStyle = noseColor;
+  ctx.beginPath();
+  ctx.ellipse(16, -6, 4, 3, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Nose shine
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.beginPath(); ctx.arc(15, -7, 1.5, 0, Math.PI * 2); ctx.fill();
+
+  // Mouth
+  ctx.strokeStyle = '#602000';
+  ctx.lineWidth = 1.5;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(12, -2); ctx.quadraticCurveTo(16, 2, 20, -2);
+  ctx.stroke();
+
+  // Tongue (panting)
+  if (state === 'playing') {
+    ctx.fillStyle = '#e85070';
+    ctx.beginPath();
+    ctx.ellipse(16, 2, 4, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Collar (cute pink)
+  ctx.strokeStyle = '#e040a0';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.arc(16, -2, 12, Math.PI * 0.1, Math.PI * 0.9);
+  ctx.stroke();
+  // Collar tag
+  ctx.fillStyle = '#f0c000';
+  ctx.beginPath(); ctx.arc(16, 10, 4, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#a08000';
+  ctx.font = 'bold 5px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('S', 16, 12);
+
+  ctx.restore();
+}
+
+// ─── Drawing: Cactus ───────────────────────────────────────────────────────
+function drawCactus(ob) {
+  ctx.save();
+  ctx.translate(ob.x, ob.y);
+
+  const green = '#3a8a2a';
+  const greenDark = '#2a6a1a';
+  const greenLight = '#5aaa4a';
+
+  if (ob.type === 0) {
+    // Tall single cactus with two arms
+    ctx.fillStyle = green;
+    // Trunk
+    ctx.beginPath(); ctx.roundRect(10, -ob.h + 10, 16, ob.h - 10, 4); ctx.fill();
+    // Left arm
+    ctx.beginPath(); ctx.roundRect(0, -ob.h * 0.55, 10, 8, 3); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(0, -ob.h * 0.75, 8, ob.h * 0.22, 3); ctx.fill();
+    // Right arm
+    ctx.beginPath(); ctx.roundRect(26, -ob.h * 0.45, 10, 8, 3); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(28, -ob.h * 0.65, 8, ob.h * 0.22, 3); ctx.fill();
+    // Highlight
+    ctx.fillStyle = greenLight;
+    ctx.beginPath(); ctx.roundRect(12, -ob.h + 12, 6, ob.h - 14, 2); ctx.fill();
+    // Spines
+    ctx.strokeStyle = '#c8c860';
+    ctx.lineWidth = 1.5;
+    const spineY = [-ob.h * 0.85, -ob.h * 0.65, -ob.h * 0.45, -ob.h * 0.25];
+    for (const sy of spineY) {
+      ctx.beginPath(); ctx.moveTo(8, sy); ctx.lineTo(2, sy - 4); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(28, sy); ctx.lineTo(34, sy - 4); ctx.stroke();
+    }
+  } else if (ob.type === 1) {
+    // Short fat cactus cluster
+    ctx.fillStyle = green;
+    ctx.beginPath(); ctx.roundRect(4, -ob.h + 4, 14, ob.h - 4, 5); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(18, -ob.h * 0.7 + 4, 12, ob.h * 0.7 - 4, 5); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(-4, -ob.h * 0.5 + 4, 10, ob.h * 0.5 - 4, 5); ctx.fill();
+    ctx.fillStyle = greenLight;
+    ctx.beginPath(); ctx.roundRect(6, -ob.h + 6, 5, ob.h - 8, 2); ctx.fill();
+  } else {
+    // Barrel cactus
+    ctx.fillStyle = greenDark;
+    ctx.beginPath(); ctx.roundRect(0, -ob.h, ob.w, ob.h, 8); ctx.fill();
+    // Ribs
+    ctx.strokeStyle = green;
+    ctx.lineWidth = 3;
+    for (let i = 1; i < 5; i++) {
+      ctx.beginPath();
+      ctx.moveTo(ob.w * i / 5, -ob.h + 8);
+      ctx.lineTo(ob.w * i / 5, -4);
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#e8e040';
+    ctx.beginPath(); ctx.arc(ob.w / 2, -ob.h + 4, 6, 0, Math.PI * 2); ctx.fill();
+  }
+
+  ctx.restore();
+}
+
+// ─── Drawing: Food ─────────────────────────────────────────────────────────
+function drawFood(f) {
+  ctx.save();
+  ctx.translate(f.x + f.w / 2, f.y + f.h / 2);
+  // Bobbing
+  ctx.translate(0, Math.sin(frame * 0.08 + f.phase) * 4);
+  // Glow
+  ctx.shadowBlur = 16;
+  ctx.shadowColor = f.glowColor;
+
+  if (f.type === 'taco') {
+    drawTaco();
+  } else if (f.type === 'churro') {
+    drawChurro();
+  } else if (f.type === 'tamale') {
+    drawTamale();
+  } else if (f.type === 'burrito') {
+    drawBurrito();
+  } else if (f.type === 'elote') {
+    drawElote();
+  }
+
+  ctx.restore();
+}
+
+function drawTaco() {
+  // Shell
+  ctx.fillStyle = '#d4a030';
+  ctx.beginPath();
+  ctx.arc(0, 2, 18, Math.PI, 0, false);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = '#a07020';
+  ctx.lineWidth = 1.5; ctx.stroke();
+  // Filling - lettuce
+  ctx.fillStyle = '#40c040';
+  ctx.beginPath();
+  ctx.ellipse(0, -2, 14, 5, 0, 0, Math.PI * 2); ctx.fill();
+  // Filling - meat
+  ctx.fillStyle = '#8b4513';
+  ctx.beginPath();
+  ctx.ellipse(-3, -1, 7, 4, -0.2, 0, Math.PI * 2); ctx.fill();
+  // Filling - tomato
+  ctx.fillStyle = '#e03020';
+  ctx.beginPath();
+  ctx.arc(5, -3, 4, 0, Math.PI * 2); ctx.fill();
+  // Filling - cheese
+  ctx.fillStyle = '#f0c020';
+  ctx.fillRect(-10, -5, 20, 3);
+}
+
+function drawChurro() {
+  ctx.save();
+  ctx.rotate(-0.3);
+  // Churro body
+  ctx.fillStyle = '#c07820';
+  ctx.beginPath();
+  ctx.roundRect(-20, -6, 40, 12, 6); ctx.fill();
+  // Ridges
+  ctx.strokeStyle = '#a05810';
+  ctx.lineWidth = 2;
+  for (let x = -14; x <= 14; x += 7) {
+    ctx.beginPath();
+    ctx.moveTo(x, -6); ctx.lineTo(x, 6); ctx.stroke();
+  }
+  // Sugar coating
+  ctx.fillStyle = 'rgba(255,255,200,0.5)';
+  ctx.beginPath();
+  ctx.roundRect(-20, -6, 40, 5, [6, 6, 0, 0]); ctx.fill();
+  // Cinnamon dots
+  ctx.fillStyle = '#8b3000';
+  for (let i = 0; i < 6; i++) {
+    ctx.beginPath();
+    ctx.arc(-16 + i * 6, rand(-2, 2), 1.5, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawTamale() {
+  // Corn husk wrapper
+  ctx.fillStyle = '#c8b840';
+  ctx.beginPath();
+  ctx.roundRect(-10, -20, 20, 38, 5); ctx.fill();
+  // Husk lines
+  ctx.strokeStyle = '#a09820';
+  ctx.lineWidth = 1;
+  for (let y = -14; y < 16; y += 6) {
+    ctx.beginPath();
+    ctx.moveTo(-8, y); ctx.lineTo(8, y); ctx.stroke();
+  }
+  // Filling peek
+  ctx.fillStyle = '#e05030';
+  ctx.beginPath();
+  ctx.ellipse(0, 2, 7, 10, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#f08050';
+  ctx.beginPath();
+  ctx.ellipse(0, -1, 4, 7, 0, 0, Math.PI * 2); ctx.fill();
+  // Tie string
+  ctx.strokeStyle = '#d4c060';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(-10, 12); ctx.lineTo(10, 12); ctx.stroke();
+}
+
+function drawBurrito() {
+  ctx.fillStyle = '#d4b870';
+  ctx.beginPath();
+  ctx.roundRect(-8, -22, 16, 44, 8); ctx.fill();
+  ctx.strokeStyle = '#b09850';
+  ctx.lineWidth = 1; ctx.stroke();
+  // Wrap marks
+  ctx.strokeStyle = '#c0a060';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(-6, -10); ctx.lineTo(6, -10); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-6, 0); ctx.lineTo(6, 0); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-6, 10); ctx.lineTo(6, 10); ctx.stroke();
+  // Top ingredients showing
+  ctx.fillStyle = '#40c040';
+  ctx.beginPath(); ctx.ellipse(0, -20, 7, 4, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#e03020';
+  ctx.beginPath(); ctx.ellipse(0, -20, 4, 2.5, 0, 0, Math.PI * 2); ctx.fill();
+}
+
+function drawElote() {
+  // Corn on the cob
+  ctx.fillStyle = '#f0d030';
+  ctx.beginPath();
+  ctx.roundRect(-8, -20, 16, 32, 4); ctx.fill();
+  // Corn kernels
+  ctx.fillStyle = '#f8e040';
+  for (let row = 0; row < 5; row++) {
+    for (let col = 0; col < 3; col++) {
+      ctx.beginPath();
+      ctx.arc(-5 + col * 5, -15 + row * 7, 2.5, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  // Stick
+  ctx.fillStyle = '#c08030';
+  ctx.beginPath(); ctx.roundRect(-2, 12, 4, 14, 2); ctx.fill();
+  // Chili powder topping
+  ctx.fillStyle = 'rgba(200,50,20,0.4)';
+  ctx.beginPath();
+  ctx.roundRect(-8, -20, 16, 14, [4, 4, 0, 0]); ctx.fill();
+}
+
+// ─── Particles ─────────────────────────────────────────────────────────────
+function spawnCollectParticles(x, y, color) {
+  for (let i = 0; i < 12; i++) {
+    const angle = (Math.PI * 2 / 12) * i;
+    particles.push({
+      x, y, vx: Math.cos(angle) * rand(2, 5),
+      vy: Math.sin(angle) * rand(2, 5) - 2,
+      life: 40, maxLife: 40, color, r: rand(3, 7), type: 'star'
+    });
+  }
+  // Score popup
+  particles.push({ x, y, vx: 0, vy: -2, life: 50, maxLife: 50, color: '#fff', type: 'text', text: '+10' });
+}
+
+function spawnHitParticles(x, y) {
+  for (let i = 0; i < 10; i++) {
+    particles.push({
+      x, y, vx: rand(-4, 4), vy: rand(-5, -1),
+      life: 30, maxLife: 30, color: '#ff4444', r: rand(4, 9), type: 'circle'
+    });
+  }
+}
+
+function spawnJumpPuff() {
+  for (let i = 0; i < 6; i++) {
+    particles.push({
+      x: player.x + player.w / 2, y: player.y + player.h,
+      vx: rand(-2, 2), vy: rand(0, 2),
+      life: 20, maxLife: 20, color: '#e8d090', r: rand(4, 10), type: 'circle'
+    });
+  }
+}
+
+function updateParticles() {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx; p.y += p.vy;
+    p.vy += 0.12;
+    p.life--;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+}
+
+function drawParticles() {
+  for (const p of particles) {
+    const alpha = p.life / p.maxLife;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    if (p.type === 'star') {
+      ctx.fillStyle = p.color;
+      ctx.shadowBlur = 8; ctx.shadowColor = p.color;
+      drawStar(p.x, p.y, p.r * 0.5, p.r, 5);
+    } else if (p.type === 'circle') {
+      ctx.fillStyle = p.color;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r * alpha + 2, 0, Math.PI * 2); ctx.fill();
+    } else if (p.type === 'text') {
+      ctx.fillStyle = p.color;
+      ctx.font = 'bold 18px Georgia';
+      ctx.textAlign = 'center';
+      ctx.shadowBlur = 4; ctx.shadowColor = '#ffaa00';
+      ctx.fillText(p.text, p.x, p.y);
+    }
+    ctx.restore();
+  }
+}
+
+function drawStar(cx, cy, innerR, outerR, points) {
+  ctx.beginPath();
+  for (let i = 0; i < points * 2; i++) {
+    const r = i % 2 === 0 ? outerR : innerR;
+    const angle = (Math.PI / points) * i - Math.PI / 2;
+    ctx.lineTo(cx + Math.cos(angle) * r, cy + Math.sin(angle) * r);
+  }
+  ctx.closePath(); ctx.fill();
+}
+
+// ─── Spawning ──────────────────────────────────────────────────────────────
+const CACTUS_TYPES = [
+  { type: 0, w: 36, h: 64 },
+  { type: 0, w: 36, h: 80 },
+  { type: 1, w: 38, h: 50 },
+  { type: 2, w: 32, h: 40 },
+];
+const FOOD_TYPES = [
+  { type: 'taco',    w: 36, h: 32, glowColor: '#f0c040', points: 10 },
+  { type: 'churro',  w: 40, h: 20, glowColor: '#c07820', points: 10 },
+  { type: 'tamale',  w: 24, h: 38, glowColor: '#e05030', points: 10 },
+  { type: 'burrito', w: 20, h: 44, glowColor: '#d4b870', points: 10 },
+  { type: 'elote',   w: 20, h: 44, glowColor: '#f0d030', points: 10 },
+];
+
+function spawnObstacle() {
+  const t = CACTUS_TYPES[randInt(0, CACTUS_TYPES.length - 1)];
+  const h = t.h + randInt(0, 20);
+  obstacles.push({ ...t, h, x: W + 20, y: GROUND });
+}
+
+function spawnFood() {
+  const ft = FOOD_TYPES[randInt(0, FOOD_TYPES.length - 1)];
+  const groundLevel = GROUND - ft.h;
+  const midAir = GROUND - ft.h - rand(60, 110);
+  const useY = Math.random() < 0.4 ? midAir : groundLevel;
+  foods.push({ ...ft, x: W + 20, y: useY, phase: rand(0, Math.PI * 2) });
+}
+
+// ─── UI Screens ────────────────────────────────────────────────────────────
+function drawTitleScreen() {
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.45)';
+  ctx.fillRect(0, 0, W, H);
+
+  // Title card
+  ctx.fillStyle = 'rgba(30,15,0,0.85)';
+  ctx.strokeStyle = '#f5c842';
+  ctx.lineWidth = 3;
+  const bx = W / 2 - 220, by = H / 2 - 90, bw = 440, bh = 170;
+  ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, 16); ctx.fill(); ctx.stroke();
+
+  ctx.textAlign = 'center';
+  ctx.shadowBlur = 20; ctx.shadowColor = '#f5a800';
+  ctx.fillStyle = '#f5c842';
+  ctx.font = 'bold 38px Georgia';
+  ctx.fillText("🌵 Sabrina's Journey 🌵", W / 2, H / 2 - 50);
+
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#fde8a0';
+  ctx.font = '18px Georgia';
+  ctx.fillText('Guide Sabrina through the Mexican desert!', W / 2, H / 2 - 18);
+  ctx.fillText('Collect tacos, churros & tamales!', W / 2, H / 2 + 8);
+
+  ctx.fillStyle = '#f5c842';
+  ctx.font = 'bold 20px Georgia';
+  const pulse = 0.7 + 0.3 * Math.sin(frame * 0.1);
+  ctx.globalAlpha = pulse;
+  ctx.fillText('[ PRESS SPACE or CLICK to start ]', W / 2, H / 2 + 52);
+  ctx.restore();
+}
+
+function drawGameOverScreen() {
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = 'rgba(30,15,0,0.9)';
+  ctx.strokeStyle = '#e03030';
+  ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.roundRect(W / 2 - 200, H / 2 - 100, 400, 180, 16); ctx.fill(); ctx.stroke();
+
+  ctx.textAlign = 'center';
+  ctx.shadowBlur = 16; ctx.shadowColor = '#e03030';
+  ctx.fillStyle = '#ff6060';
+  ctx.font = 'bold 36px Georgia';
+  ctx.fillText('Game Over!', W / 2, H / 2 - 56);
+
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#fde8a0';
+  ctx.font = '20px Georgia';
+  ctx.fillText(`Score: ${score}`, W / 2, H / 2 - 20);
+  ctx.fillStyle = '#f5c842';
+  ctx.fillText(`Best: ${best}`, W / 2, H / 2 + 8);
+
+  ctx.font = 'bold 18px Georgia';
+  const pulse = 0.7 + 0.3 * Math.sin(frame * 0.1);
+  ctx.globalAlpha = pulse;
+  ctx.fillStyle = '#f5c842';
+  ctx.fillText('[ Click or SPACE to play again ]', W / 2, H / 2 + 52);
+  ctx.restore();
+}
+
+function drawDeathAnimation() {
+  // Flash red
+  if (flashTimer > 0) {
+    ctx.fillStyle = `rgba(255,0,0,${flashTimer / 20 * 0.4})`;
+    ctx.fillRect(0, 0, W, H);
+    flashTimer--;
+  }
+}
+
+// ─── Update ────────────────────────────────────────────────────────────────
+function updateGame() {
+  gameTime++;
+  frame++;
+
+  // Speed ramp
+  speed = 4.5 + gameTime / 1000;
+  if (gameTime % 400 === 0) spawnInterval = Math.max(45, spawnInterval - 5);
+
+  // Parallax
+  for (const l of layers) {
+    l.x -= speed * l.speed;
+  }
+
+  // Player physics
+  player.vy += 0.6;
+  player.y += player.vy;
+  if (player.y >= GROUND) {
+    player.y = GROUND;
+    player.vy = 0;
+    player.jumps = 0;
+  }
+  if (player.invincible > 0) player.invincible--;
+
+  // Spawn
+  spawnTimer++;
+  if (spawnTimer >= spawnInterval) {
+    spawnObstacle();
+    spawnTimer = 0;
+    spawnInterval = randInt(Math.max(45, 90 - Math.floor(gameTime / 400) * 5), 140);
+  }
+  foodTimer++;
+  if (foodTimer >= foodInterval) {
+    spawnFood();
+    foodTimer = 0;
+    foodInterval = randInt(80, 160);
+  }
+
+  // Update obstacles
+  for (let i = obstacles.length - 1; i >= 0; i--) {
+    const ob = obstacles[i];
+    ob.x -= speed;
+    if (ob.x + ob.w < -20) { obstacles.splice(i, 1); continue; }
+
+    // Collision
+    if (player.invincible === 0) {
+      const hb = player.hitbox;
+      const obHb = { x: ob.x + 4, y: ob.y - ob.h + 4, w: ob.w - 8, h: ob.h - 8 };
+      if (collides(hb, obHb)) {
+        lives--;
+        player.invincible = 80;
+        flashTimer = 20;
+        spawnHitParticles(player.x + player.w / 2, player.y + player.h / 2);
+        updateLivesUI();
+        if (lives <= 0) {
+          state = 'gameover';
+          if (score > best) best = score;
+          document.getElementById('bestDisplay').textContent = best;
+        }
+      }
+    }
+  }
+
+  // Update food
+  for (let i = foods.length - 1; i >= 0; i--) {
+    const f = foods[i];
+    f.x -= speed;
+    if (f.x + f.w < -20) { foods.splice(i, 1); continue; }
+    const hb = player.hitbox;
+    const fHb = { x: f.x, y: f.y, w: f.w, h: f.h };
+    if (collides(hb, fHb)) {
+      score += 10;
+      document.getElementById('scoreDisplay').textContent = score;
+      spawnCollectParticles(f.x + f.w / 2, f.y + f.h / 2, f.glowColor);
+      foods.splice(i, 1);
+    }
+  }
+
+  // Distance score
+  if (gameTime % 6 === 0) {
+    score++;
+    document.getElementById('scoreDisplay').textContent = score;
+  }
+
+  updateParticles();
+  if (flashTimer > 0) flashTimer--;
+}
+
+function updateLivesUI() {
+  const hearts = ['', '❤️', '❤️❤️', '❤️❤️❤️'];
+  document.getElementById('livesDisplay').textContent = hearts[Math.max(0, lives)] || '';
+}
+
+// ─── Reset ─────────────────────────────────────────────────────────────────
+function resetGame() {
+  score = 0; lives = 3; gameTime = 0;
+  speed = 4.5; spawnInterval = 90; spawnTimer = 0;
+  foodTimer = 0; foodInterval = 120;
+  obstacles = []; foods = []; particles = [];
+  player.y = GROUND; player.vy = 0; player.jumps = 0; player.invincible = 0;
+  document.getElementById('scoreDisplay').textContent = 0;
+  document.getElementById('livesDisplay').textContent = '❤️❤️❤️';
+  state = 'playing';
+}
+
+// ─── Main Loop ─────────────────────────────────────────────────────────────
+function loop() {
+  ctx.clearRect(0, 0, W, H);
+
+  // Background
+  drawSky();
+  for (const l of layers) {
+    ctx.save();
+    drawLayer(l);
+    ctx.restore();
+  }
+  drawGround();
+
+  if (state === 'title') {
+    frame++;
+    drawPlayer();
+    drawTitleScreen();
+    requestAnimationFrame(loop);
+    return;
+  }
+
+  if (state === 'playing') {
+    updateGame();
+  }
+
+  // Draw obstacles
+  for (const ob of obstacles) drawCactus(ob);
+
+  // Draw food
+  for (const f of foods) drawFood(f);
+
+  // Draw particles
+  drawParticles();
+
+  // Draw player
+  drawPlayer();
+
+  // Flash
+  if (flashTimer > 0) {
+    ctx.fillStyle = `rgba(255,50,50,${flashTimer / 20 * 0.35})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // HUD
+  if (state === 'playing') {
+    // Speed indicator
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath(); ctx.roundRect(10, 10, 120, 22, 6); ctx.fill();
+    ctx.fillStyle = '#f5e08a';
+    ctx.font = '13px Georgia';
+    ctx.textAlign = 'left';
+    ctx.fillText(`Distance: ${Math.floor(gameTime / 10)}m`, 18, 26);
+    ctx.restore();
+  }
+
+  if (state === 'gameover') {
+    drawGameOverScreen();
+  }
+
+  requestAnimationFrame(loop);
+}
+
+function drawLayer(l) {
+  l.draw(l.x % W);
+  l.draw((l.x % W) + W);
+  l.draw((l.x % W) - W);
+}
+
+// Start
+loop();
+</script>
+</body>
+</html>
