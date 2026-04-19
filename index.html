@@ -84,6 +84,32 @@
     .btn-quiz { background: linear-gradient(135deg, var(--orange), #e67e22); }
     .btn-memory { background: linear-gradient(135deg, var(--purple), #9b59b6); }
     .btn-speed { background: linear-gradient(135deg, var(--red), #c0392b); }
+    .btn-difficulty {
+      background: transparent;
+      border: 2px solid rgba(255,255,255,0.6) !important;
+      color: white !important;
+      font-size: 0.85rem !important;
+      padding: 8px 14px !important;
+    }
+    .btn-difficulty:hover { background: rgba(255,255,255,0.15) !important; }
+    .btn-difficulty.hard { background: rgba(231,76,60,0.6) !important; border-color: #e74c3c !important; }
+
+    /* Quiz countdown timer */
+    .quiz-timer-wrap {
+      width: 100%; max-width: 200px; margin-bottom: 10px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .quiz-timer-bar {
+      flex: 1; height: 8px; background: #ddd;
+      border-radius: 4px; overflow: hidden;
+    }
+    .quiz-timer-fill {
+      height: 100%; border-radius: 4px; background: var(--green);
+      transition: width 0.1s linear, background 0.3s;
+    }
+    .quiz-timer-fill.warn { background: var(--orange); }
+    .quiz-timer-fill.danger { background: var(--red); }
+    .quiz-timer-num { font-weight: 700; font-size: 1rem; min-width: 20px; color: var(--text); }
 
     .content { max-width: 800px; margin: 0 auto; padding: 20px; }
     .hidden { display: none !important; }
@@ -447,6 +473,7 @@
   <button class="btn-quiz" onclick="switchMode('quiz')">Quiz</button>
   <button class="btn-memory" onclick="switchMode('memory')">Memory</button>
   <button class="btn-speed" onclick="switchMode('speed')">Speed Round</button>
+  <button class="btn-difficulty" id="diff-btn" onclick="toggleDifficulty()">Easy</button>
 </nav>
 
 <main class="content">
@@ -490,6 +517,10 @@
     <p class="quiz-score" id="quiz-score">Correct: 0 / 0</p>
     <div class="quiz-letter" id="quiz-letter"></div>
     <p class="quiz-prompt" id="quiz-prompt">What is the name of this letter?</p>
+    <div class="quiz-timer-wrap hidden" id="quiz-timer-wrap">
+      <div class="quiz-timer-bar"><div class="quiz-timer-fill" id="quiz-timer-fill"></div></div>
+      <span class="quiz-timer-num" id="quiz-timer-num">8</span>
+    </div>
     <div class="quiz-options" id="quiz-options"></div>
     <p class="quiz-feedback" id="quiz-feedback"></p>
     <button class="quiz-next hidden" id="quiz-next" onclick="nextQuiz()">Next Question</button>
@@ -628,6 +659,14 @@ const words = [
 // ===== GLOBAL STATE =====
 let totalScore = 0;
 let streak = 0;
+let difficulty = "easy";
+
+function toggleDifficulty() {
+  difficulty = difficulty === "easy" ? "hard" : "easy";
+  const btn = document.getElementById("diff-btn");
+  btn.textContent = difficulty === "hard" ? "Hard" : "Easy";
+  btn.classList.toggle("hard", difficulty === "hard");
+}
 
 function updateScore(points) {
   totalScore += points;
@@ -751,6 +790,38 @@ let quizCorrect = 0;
 let quizTotal = 0;
 let quizAnswered = false;
 let quizCategory = "letters";
+let quizTimerInterval = null;
+let quizTimeLeft = 0;
+const QUIZ_TIME_HARD = 8;
+
+function startQuizTimer(correctAnswer) {
+  quizTimeLeft = QUIZ_TIME_HARD;
+  const fill = document.getElementById("quiz-timer-fill");
+  const num = document.getElementById("quiz-timer-num");
+  fill.style.width = "100%";
+  fill.className = "quiz-timer-fill";
+  num.textContent = quizTimeLeft;
+
+  quizTimerInterval = setInterval(() => {
+    quizTimeLeft -= 0.1;
+    const pct = Math.max(0, (quizTimeLeft / QUIZ_TIME_HARD) * 100);
+    fill.style.width = pct + "%";
+    const secs = Math.ceil(quizTimeLeft);
+    num.textContent = secs;
+    if (pct < 33) fill.className = "quiz-timer-fill danger";
+    else if (pct < 66) fill.className = "quiz-timer-fill warn";
+
+    if (quizTimeLeft <= 0) {
+      clearInterval(quizTimerInterval);
+      if (!quizAnswered) handleQuizAnswer(null, false, correctAnswer);
+    }
+  }, 100);
+}
+
+function stopQuizTimer() {
+  clearInterval(quizTimerInterval);
+  document.getElementById("quiz-timer-wrap").classList.add("hidden");
+}
 
 function setQuizCategory(cat) {
   quizCategory = cat;
@@ -793,26 +864,34 @@ function nextQuiz() {
   const container = document.getElementById("quiz-options");
   container.innerHTML = "";
 
+  const correctAnswer = quizCategory === "words" ? correct.sound : correct.name;
+
   options.forEach(opt => {
     const btn = document.createElement("button");
     btn.textContent = quizCategory === "words" ? opt.sound : opt.name;
-    const correctAnswer = quizCategory === "words" ? correct.sound : correct.name;
     const optAnswer = quizCategory === "words" ? opt.sound : opt.name;
     btn.onclick = () => handleQuizAnswer(btn, optAnswer === correctAnswer, correctAnswer);
     container.appendChild(btn);
   });
+
+  stopQuizTimer();
+  if (difficulty === "hard") {
+    document.getElementById("quiz-timer-wrap").classList.remove("hidden");
+    startQuizTimer(correctAnswer);
+  }
 }
 
 function handleQuizAnswer(btn, isCorrect, correctAnswer) {
   if (quizAnswered) return;
   quizAnswered = true;
+  stopQuizTimer();
   quizTotal++;
 
   const feedback = document.getElementById("quiz-feedback");
 
   if (isCorrect) {
     quizCorrect++;
-    btn.classList.add("correct");
+    if (btn) btn.classList.add("correct");
     feedback.textContent = "Correct!";
     feedback.style.color = "var(--green)";
     updateScore(10);
@@ -822,11 +901,11 @@ function handleQuizAnswer(btn, isCorrect, correctAnswer) {
       showCelebration(streak + " in a row!", "You're on fire! Keep going!");
     }
   } else {
-    btn.classList.add("wrong");
+    if (btn) btn.classList.add("wrong");
     document.querySelectorAll("#quiz-options button").forEach(b => {
       if (b.textContent === correctAnswer) b.classList.add("correct");
     });
-    feedback.textContent = "It's " + correctAnswer;
+    feedback.textContent = btn ? "It's " + correctAnswer : "Time's up! It's " + correctAnswer;
     feedback.style.color = "var(--red)";
     updateStreak(false);
   }
@@ -867,7 +946,8 @@ function startMemory() {
   const data = getDataset(memCategory);
   const shuffled = [...data];
   shuffle(shuffled);
-  const picked = shuffled.slice(0, 8);
+  const pairCount = difficulty === "hard" ? 10 : 8;
+  const picked = shuffled.slice(0, Math.min(pairCount, data.length));
   memTotalPairs = picked.length;
 
   document.getElementById("mem-pairs").textContent = "0 / " + memTotalPairs;
@@ -957,12 +1037,13 @@ function handleMemClick(el, idx) {
       a.el.classList.add("wrong");
       b.el.classList.add("wrong");
       updateStreak(false);
+      const flipBackDelay = difficulty === "hard" ? 400 : 800;
       setTimeout(() => {
         a.el.classList.remove("flipped", "wrong");
         b.el.classList.remove("flipped", "wrong");
         memFlipped = [];
         memLocked = false;
-      }, 800);
+      }, flipBackDelay);
     }
   }
 }
@@ -970,7 +1051,7 @@ function handleMemClick(el, idx) {
 // ===== SPEED ROUND =====
 let speedTimer = null;
 let speedTimeLeft = 30;
-const SPEED_TOTAL_TIME = 30;
+let speedTotalTime = 30;
 let speedScore = 0;
 let speedCombo = 0;
 let speedBestCombo = 0;
@@ -998,7 +1079,8 @@ function startSpeed() {
   speedBestCombo = 0;
   speedCorrectCount = 0;
   speedTotalCount = 0;
-  speedTimeLeft = SPEED_TOTAL_TIME;
+  speedTotalTime = difficulty === "hard" ? 20 : 30;
+  speedTimeLeft = speedTotalTime;
   speedActive = true;
 
   document.getElementById("speed-setup").classList.add("hidden");
@@ -1022,7 +1104,7 @@ function startSpeed() {
 }
 
 function updateSpeedTimer() {
-  const pct = Math.max(0, (speedTimeLeft / SPEED_TOTAL_TIME) * 100);
+  const pct = Math.max(0, (speedTimeLeft / speedTotalTime) * 100);
   document.getElementById("speed-fill").style.width = pct + "%";
   document.getElementById("speed-time").textContent = Math.ceil(speedTimeLeft) + "s";
 }
@@ -1073,7 +1155,8 @@ function handleSpeedAnswer(btn, isCorrect, e) {
     const multiplier = Math.min(5, 1 + Math.floor(speedCombo / 3));
     const points = 10 * multiplier;
     speedScore += points;
-    speedTimeLeft = Math.min(SPEED_TOTAL_TIME, speedTimeLeft + 1);
+    const timeBonus = difficulty === "hard" ? 0.5 : 1;
+    speedTimeLeft = Math.min(speedTotalTime, speedTimeLeft + timeBonus);
 
     btn.classList.add("s-correct");
     sl.classList.add("correct-flash");
@@ -1099,13 +1182,14 @@ function handleSpeedAnswer(btn, isCorrect, e) {
     updateStreak(true);
   } else {
     speedCombo = 0;
-    speedTimeLeft = Math.max(0, speedTimeLeft - 2);
+    const timePenalty = difficulty === "hard" ? 4 : 2;
+    speedTimeLeft = Math.max(0, speedTimeLeft - timePenalty);
     btn.classList.add("s-wrong");
     sl.classList.add("wrong-flash");
     document.getElementById("speed-combo").textContent = "";
 
     const rect = btn.getBoundingClientRect();
-    floatText("-2s", "var(--red)", rect.left + rect.width / 2 - 15, rect.top - 10);
+    floatText("-" + (difficulty === "hard" ? 4 : 2) + "s", "var(--red)", rect.left + rect.width / 2 - 15, rect.top - 10);
 
     updateStreak(false);
   }
