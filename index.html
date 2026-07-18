@@ -454,7 +454,96 @@
       .memory-grid { grid-template-columns: repeat(4, 1fr); gap: 6px; }
       .mem-card-front.is-hebrew { font-size: 2rem; }
       .quiz-options button, .speed-options button { font-size: 1rem; padding: 12px; }
+      .write-grid { grid-template-columns: repeat(4, 1fr); }
+      .write-card { font-size: 1.8rem; }
     }
+
+    /* ===== XP BAR ===== */
+    .xp-bar-wrap {
+      margin-top: 8px; display: flex; align-items: center; gap: 10px; justify-content: center;
+    }
+    .xp-bar-bg {
+      width: 200px; height: 10px; background: rgba(255,255,255,0.2); border-radius: 5px; overflow: hidden;
+    }
+    .xp-bar-fill {
+      height: 100%; border-radius: 5px;
+      background: linear-gradient(90deg, #f9ca24, #f0932b);
+      transition: width 0.4s ease;
+    }
+    .level-badge {
+      font-size: 0.85rem; font-weight: 700;
+      background: rgba(255,255,255,0.25); border-radius: 12px; padding: 3px 10px;
+    }
+    .daily-streak-badge { font-size: 0.9rem; font-weight: 700; }
+
+    /* ===== WRITE MODE ===== */
+    .btn-write { background: linear-gradient(135deg, #11998e, #38ef7d); }
+    .write-area { display: flex; flex-direction: column; align-items: center; }
+    .write-prompt { font-size: 1.5rem; font-weight: 700; margin-bottom: 6px; color: var(--text); text-align: center; }
+    .write-hint { font-size: 1rem; color: #777; margin-bottom: 18px; }
+    .write-grid {
+      display: grid; grid-template-columns: repeat(5, 1fr);
+      gap: 8px; width: 100%; max-width: 500px; margin-bottom: 16px;
+    }
+    .write-card {
+      aspect-ratio: 1; border: 3px solid #ddd; border-radius: 12px;
+      font-family: var(--heb-font); font-weight: 900; font-size: 2rem;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; background: white; transition: all 0.15s;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    }
+    .write-card:hover { border-color: var(--blue); transform: translateY(-2px); background: #f0f7ff; }
+    .write-card.correct { border-color: var(--green); background: #d4edda; animation: pop 0.3s ease; }
+    .write-card.wrong { border-color: var(--red); background: #f8d7da; animation: shake 0.4s ease; }
+    .write-feedback { font-size: 1.3rem; font-weight: 700; min-height: 36px; margin-bottom: 10px; text-align: center; }
+    .write-score { font-size: 1rem; color: #555; margin-bottom: 12px; }
+    .write-next {
+      padding: 12px 32px; border: none; border-radius: 10px;
+      font-size: 1.1rem; font-weight: 600; cursor: pointer;
+      color: white; background: var(--blue); transition: transform 0.1s;
+    }
+    .write-next:hover { transform: scale(1.05); }
+
+    /* ===== PROGRESS MODE ===== */
+    .btn-progress { background: linear-gradient(135deg, #f7971e, #ffd200); color: #333 !important; }
+    .progress-area { display: flex; flex-direction: column; align-items: center; }
+    .progress-header { text-align: center; margin-bottom: 20px; }
+    .progress-header h2 { font-size: 1.5rem; margin-bottom: 4px; }
+    .progress-header p { color: #666; font-size: 0.95rem; }
+    .badge-section { width: 100%; max-width: 600px; margin-bottom: 24px; }
+    .badge-section h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 12px; }
+    .badge-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px;
+    }
+    .badge-item {
+      background: white; border-radius: 12px; padding: 12px 8px;
+      text-align: center; box-shadow: var(--shadow); border: 3px solid #eee;
+      opacity: 0.5; filter: grayscale(1);
+    }
+    .badge-item.earned { border-color: var(--orange); background: #fff9e6; opacity: 1; filter: none; }
+    .badge-icon { font-size: 2rem; margin-bottom: 4px; }
+    .badge-name { font-size: 0.8rem; font-weight: 700; }
+    .badge-desc { font-size: 0.7rem; color: #888; margin-top: 2px; }
+    .weak-section { width: 100%; max-width: 600px; }
+    .weak-section h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 10px; }
+    .weak-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 14px; background: white; border-radius: 10px;
+      margin-bottom: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    }
+    .weak-letter { font-family: var(--heb-font); font-weight: 900; font-size: 2rem; min-width: 42px; text-align: center; }
+    .weak-name { font-weight: 600; flex: 1; }
+    .weak-bar-wrap { width: 80px; height: 8px; background: #eee; border-radius: 4px; overflow: hidden; }
+    .weak-bar { height: 100%; background: var(--red); border-radius: 4px; }
+    .progress-reset {
+      margin-top: 20px; padding: 10px 24px; border: 2px solid #ddd;
+      border-radius: 10px; background: white; cursor: pointer;
+      font-size: 0.9rem; color: #999;
+    }
+    .progress-reset:hover { border-color: var(--red); color: var(--red); }
+    .prog-level-bar { width: 100%; max-width: 400px; margin-bottom: 24px; }
+    .prog-level-bar-bg { height: 16px; background: #eee; border-radius: 8px; overflow: hidden; margin-top: 6px; }
+    .prog-level-bar-fill { height: 100%; background: linear-gradient(90deg, var(--blue), var(--purple)); border-radius: 8px; transition: width 0.4s; }
   </style>
 </head>
 <body>
@@ -465,6 +554,12 @@
   <div class="score-bar">
     <span id="total-score">Score: 0</span>
     <span id="streak-display">Streak: 0</span>
+    <span class="level-badge" id="level-badge">Lv 1</span>
+    <span class="daily-streak-badge" id="daily-streak-badge">🔥 0</span>
+  </div>
+  <div class="xp-bar-wrap">
+    <div class="xp-bar-bg"><div class="xp-bar-fill" id="xp-bar" style="width:0%"></div></div>
+    <span style="font-size:0.8rem;opacity:0.85" id="xp-label">0 / 100 XP</span>
   </div>
 </header>
 
@@ -473,6 +568,8 @@
   <button class="btn-quiz" onclick="switchMode('quiz')">Quiz</button>
   <button class="btn-memory" onclick="switchMode('memory')">Memory</button>
   <button class="btn-speed" onclick="switchMode('speed')">Speed Round</button>
+  <button class="btn-write" onclick="switchMode('write')">Write</button>
+  <button class="btn-progress" onclick="switchMode('progress')">Progress</button>
   <button class="btn-difficulty" id="diff-btn" onclick="toggleDifficulty()">Easy</button>
 </nav>
 
@@ -511,6 +608,7 @@
     <div class="sub-tabs" id="quiz-tabs">
       <button class="active" onclick="setQuizCategory('letters')">Letters</button>
       <button onclick="setQuizCategory('vowels')">Vowels</button>
+      <button onclick="setQuizCategory('niqqud')">Niqqud Sounds</button>
       <button onclick="setQuizCategory('words')">Words</button>
       <button onclick="setQuizCategory('mixed')">Mixed</button>
     </div>
@@ -575,6 +673,44 @@
       <div class="end-stats" id="speed-end-stats"></div>
       <button class="speed-start" onclick="resetSpeed()">Play Again</button>
     </div>
+  </section>
+
+
+  <!-- WRITE MODE -->
+  <section id="write-mode" class="write-area hidden">
+    <div class="sub-tabs" id="write-tabs">
+      <button class="active" onclick="setWriteCategory('letters')">Letters</button>
+      <button onclick="setWriteCategory('vowels')">Vowels</button>
+    </div>
+    <p class="write-score" id="write-score">Correct: 0 / 0</p>
+    <p class="write-prompt" id="write-prompt"></p>
+    <p class="write-hint">Tap the correct Hebrew character</p>
+    <div class="write-grid" id="write-grid"></div>
+    <p class="write-feedback" id="write-feedback"></p>
+    <button class="write-next hidden" id="write-next" onclick="nextWrite()">Next &rarr;</button>
+  </section>
+
+  <!-- PROGRESS MODE -->
+  <section id="progress-mode" class="progress-area hidden">
+    <div class="progress-header">
+      <h2 id="prog-level-title">Level 1 — Alef Apprentice</h2>
+    </div>
+    <div class="prog-level-bar">
+      <div style="display:flex;justify-content:space-between;font-size:0.85rem;color:#666">
+        <span id="prog-xp-text">0 / 100 XP</span>
+        <span id="prog-streak-text">🔥 Daily Streak: 0</span>
+      </div>
+      <div class="prog-level-bar-bg"><div class="prog-level-bar-fill" id="prog-xp-bar" style="width:0%"></div></div>
+    </div>
+    <div class="badge-section">
+      <h3>Badges</h3>
+      <div class="badge-grid" id="badge-grid"></div>
+    </div>
+    <div class="weak-section">
+      <h3>Letters to Practice More</h3>
+      <div id="weak-list"></div>
+    </div>
+    <button class="progress-reset" onclick="resetProgress()">Reset All Progress</button>
   </section>
 
 </main>
@@ -661,6 +797,147 @@ let totalScore = 0;
 let streak = 0;
 let difficulty = "easy";
 
+// ===== XP / LEVEL / PROGRESS =====
+let xp = 0;
+let level = 1;
+let dailyStreak = 0;
+const XP_PER_LEVEL = 100;
+let earnedBadges = new Set();
+let mistakes = {}; // itemName -> mistake count (float, decays on correct)
+
+const LEVEL_TITLES = [
+  "Alef Apprentice", "Bet Beginner", "Gimel Grower", "Dalet Doer",
+  "He Hero", "Vav Veteran", "Torah Scholar", "Alef-Bet Master"
+];
+
+const BADGES = [
+  { id: "first_correct", icon: "🌟", name: "First Star", desc: "Get your first correct answer" },
+  { id: "score100",      icon: "🏅", name: "Century",   desc: "Earn 100 total points" },
+  { id: "score500",      icon: "🏆", name: "Champion",  desc: "Earn 500 total points" },
+  { id: "streak5",       icon: "🔥", name: "On Fire",   desc: "5 correct in a row" },
+  { id: "streak10",      icon: "⚡", name: "Lightning", desc: "10 correct in a row" },
+  { id: "level3",        icon: "📚", name: "Scholar",   desc: "Reach Level 3" },
+  { id: "level5",        icon: "🎓", name: "Graduate",  desc: "Reach Level 5" },
+  { id: "hard_correct",  icon: "💪", name: "Hard Core", desc: "Answer correctly on Hard mode" },
+  { id: "write10",       icon: "✍️",  name: "Writer",   desc: "Get 10 correct in Write mode" },
+  { id: "daily3",        icon: "📅", name: "Dedicated", desc: "3-day daily streak" },
+];
+
+let writeCorrectTotal = 0;
+
+function loadProgress() {
+  try {
+    const raw = localStorage.getItem("heb_progress");
+    if (!raw) return;
+    const s = JSON.parse(raw);
+    xp = s.xp || 0;
+    level = s.level || 1;
+    totalScore = s.totalScore || 0;
+    streak = s.streak || 0;
+    earnedBadges = new Set(s.earnedBadges || []);
+    mistakes = s.mistakes || {};
+    writeCorrectTotal = s.writeCorrectTotal || 0;
+
+    const today = new Date().toDateString();
+    const yesterday = new Date(Date.now() - 86400000).toDateString();
+    if (s.lastDay === today) {
+      dailyStreak = s.dailyStreak || 1;
+    } else if (s.lastDay === yesterday) {
+      dailyStreak = (s.dailyStreak || 0) + 1;
+    } else {
+      dailyStreak = 1;
+    }
+  } catch(e) {}
+  document.getElementById("total-score").textContent = "Score: " + totalScore;
+  document.getElementById("streak-display").textContent = "Streak: " + streak;
+  updateXPDisplay();
+  saveProgress();
+}
+
+function saveProgress() {
+  try {
+    localStorage.setItem("heb_progress", JSON.stringify({
+      xp, level, totalScore, streak, dailyStreak, writeCorrectTotal,
+      earnedBadges: [...earnedBadges],
+      mistakes,
+      lastDay: new Date().toDateString(),
+    }));
+  } catch(e) {}
+}
+
+function addXP(amount) {
+  xp += amount;
+  const xpNeeded = level * XP_PER_LEVEL;
+  if (xp >= xpNeeded) {
+    xp -= xpNeeded;
+    level++;
+    const title = LEVEL_TITLES[Math.min(level - 1, LEVEL_TITLES.length - 1)];
+    showCelebration("Level Up! 🎉", "You are now Level " + level + " — " + title + "!");
+  }
+  updateXPDisplay();
+}
+
+function updateXPDisplay() {
+  const xpNeeded = level * XP_PER_LEVEL;
+  const pct = Math.min(100, (xp / xpNeeded) * 100);
+  document.getElementById("xp-bar").style.width = pct + "%";
+  document.getElementById("xp-label").textContent = xp + " / " + xpNeeded + " XP";
+  document.getElementById("level-badge").textContent = "Lv " + level;
+  document.getElementById("daily-streak-badge").textContent = "🔥 " + dailyStreak;
+}
+
+function recordMistake(itemName) {
+  mistakes[itemName] = (mistakes[itemName] || 0) + 1;
+}
+
+function recordCorrect(itemName) {
+  if (mistakes[itemName] > 0) {
+    mistakes[itemName] = Math.max(0, mistakes[itemName] - 0.5);
+    if (mistakes[itemName] === 0) delete mistakes[itemName];
+  }
+}
+
+function checkBadges() {
+  const prev = earnedBadges.size;
+  if (totalScore > 0) earnedBadges.add("first_correct");
+  if (totalScore >= 100) earnedBadges.add("score100");
+  if (totalScore >= 500) earnedBadges.add("score500");
+  if (streak >= 5) earnedBadges.add("streak5");
+  if (streak >= 10) earnedBadges.add("streak10");
+  if (level >= 3) earnedBadges.add("level3");
+  if (level >= 5) earnedBadges.add("level5");
+  if (writeCorrectTotal >= 10) earnedBadges.add("write10");
+  if (dailyStreak >= 3) earnedBadges.add("daily3");
+  if (earnedBadges.size > prev) {
+    const newest = [...earnedBadges].filter(id => !Array.from({length: prev}).includes(id));
+    const badge = BADGES.find(b => b.id === newest[newest.length - 1]);
+    if (badge) showCelebration("Badge Unlocked! " + badge.icon, badge.name + ": " + badge.desc);
+  }
+}
+
+// Weighted random: items with more mistakes come up more often
+function weightedPick(data) {
+  const weights = data.map(item => 1 + (mistakes[item.name] || 0) * 2);
+  const total = weights.reduce((a, b) => a + b, 0);
+  let r = Math.random() * total;
+  for (let i = 0; i < data.length; i++) {
+    r -= weights[i];
+    if (r <= 0) return i;
+  }
+  return data.length - 1;
+}
+
+function resetProgress() {
+  if (!confirm("Reset all progress? This cannot be undone.")) return;
+  xp = 0; level = 1; totalScore = 0; streak = 0;
+  earnedBadges = new Set(); mistakes = {}; dailyStreak = 1; writeCorrectTotal = 0;
+  localStorage.removeItem("heb_progress");
+  updateXPDisplay();
+  document.getElementById("total-score").textContent = "Score: 0";
+  document.getElementById("streak-display").textContent = "Streak: 0";
+  showProgress();
+}
+
 function toggleDifficulty() {
   difficulty = difficulty === "easy" ? "hard" : "easy";
   const btn = document.getElementById("diff-btn");
@@ -671,6 +948,9 @@ function toggleDifficulty() {
 function updateScore(points) {
   totalScore += points;
   document.getElementById("total-score").textContent = "Score: " + totalScore;
+  addXP(Math.ceil(points / 2));
+  checkBadges();
+  saveProgress();
 }
 
 function updateStreak(correct) {
@@ -711,7 +991,7 @@ function floatText(text, color, x, y) {
 }
 
 // ===== MODE SWITCHING =====
-const modes = ["flashcards", "quiz", "memory", "speed"];
+const modes = ["flashcards", "quiz", "memory", "speed", "write", "progress"];
 
 function switchMode(mode) {
   document.querySelectorAll(".nav button").forEach(b => b.classList.remove("active"));
@@ -725,6 +1005,8 @@ function switchMode(mode) {
   if (mode === "quiz") { quizCorrect = 0; quizTotal = 0; nextQuiz(); }
   if (mode === "memory") startMemory();
   if (mode === "speed") resetSpeed();
+  if (mode === "write") initWrite();
+  if (mode === "progress") showProgress();
 }
 
 // ===== FLASHCARD MODE =====
@@ -794,7 +1076,7 @@ let quizTimerInterval = null;
 let quizTimeLeft = 0;
 const QUIZ_TIME_HARD = 8;
 
-function startQuizTimer(correctAnswer) {
+function startQuizTimer(correctAnswer, itemName) {
   quizTimeLeft = QUIZ_TIME_HARD;
   const fill = document.getElementById("quiz-timer-fill");
   const num = document.getElementById("quiz-timer-num");
@@ -813,7 +1095,7 @@ function startQuizTimer(correctAnswer) {
 
     if (quizTimeLeft <= 0) {
       clearInterval(quizTimerInterval);
-      if (!quizAnswered) handleQuizAnswer(null, false, correctAnswer);
+      if (!quizAnswered) handleQuizAnswer(null, false, correctAnswer, itemName);
     }
   }, 100);
 }
@@ -836,52 +1118,53 @@ function nextQuiz() {
   document.getElementById("quiz-feedback").textContent = "";
   document.getElementById("quiz-next").classList.add("hidden");
 
-  const data = getDataset(quizCategory);
-  const correctIdx = Math.floor(Math.random() * data.length);
+  // Niqqud mode uses vowels but asks for SOUND, not name
+  const isNiqqud = quizCategory === "niqqud";
+  const data = isNiqqud ? vowels : getDataset(quizCategory);
+  const correctIdx = weightedPick(data);
   const correct = data[correctIdx];
 
   document.getElementById("quiz-letter").textContent = correct.letter;
 
-  // Adjust font size for words
   const ql = document.getElementById("quiz-letter");
   ql.style.fontSize = quizCategory === "words" ? "3.5rem" : "9rem";
 
-  // Set prompt text
   const prompt = document.getElementById("quiz-prompt");
   if (quizCategory === "words") {
     prompt.textContent = "What does this word mean?";
+  } else if (isNiqqud) {
+    prompt.textContent = "What SOUND does this vowel make?";
   } else {
     prompt.textContent = "What is the name of this " + (quizCategory === "vowels" ? "vowel" : "letter") + "?";
   }
 
-  // Build 4 options
   const wrongOptions = data.filter((_, i) => i !== correctIdx);
   shuffle(wrongOptions);
-  const optionLabel = quizCategory === "words" ? "sound" : "name";
   const options = [correct, wrongOptions[0], wrongOptions[1], wrongOptions[2]];
   shuffle(options);
 
   const container = document.getElementById("quiz-options");
   container.innerHTML = "";
 
-  const correctAnswer = quizCategory === "words" ? correct.sound : correct.name;
+  // For niqqud: answer by sound. For words: answer by sound (meaning). Else: answer by name.
+  const getAnswer = (item) => (quizCategory === "words" || isNiqqud) ? item.sound : item.name;
+  const correctAnswer = getAnswer(correct);
 
   options.forEach(opt => {
     const btn = document.createElement("button");
-    btn.textContent = quizCategory === "words" ? opt.sound : opt.name;
-    const optAnswer = quizCategory === "words" ? opt.sound : opt.name;
-    btn.onclick = () => handleQuizAnswer(btn, optAnswer === correctAnswer, correctAnswer);
+    btn.textContent = getAnswer(opt);
+    btn.onclick = () => handleQuizAnswer(btn, getAnswer(opt) === correctAnswer, correctAnswer, correct.name);
     container.appendChild(btn);
   });
 
   stopQuizTimer();
   if (difficulty === "hard") {
     document.getElementById("quiz-timer-wrap").classList.remove("hidden");
-    startQuizTimer(correctAnswer);
+    startQuizTimer(correctAnswer, correct.name);
   }
 }
 
-function handleQuizAnswer(btn, isCorrect, correctAnswer) {
+function handleQuizAnswer(btn, isCorrect, correctAnswer, itemName) {
   if (quizAnswered) return;
   quizAnswered = true;
   stopQuizTimer();
@@ -892,22 +1175,26 @@ function handleQuizAnswer(btn, isCorrect, correctAnswer) {
   if (isCorrect) {
     quizCorrect++;
     if (btn) btn.classList.add("correct");
-    feedback.textContent = "Correct!";
+    feedback.textContent = "Correct! ✓";
     feedback.style.color = "var(--green)";
+    if (difficulty === "hard") earnedBadges.add("hard_correct");
     updateScore(10);
     updateStreak(true);
+    if (itemName) recordCorrect(itemName);
 
     if (streak > 0 && streak % 5 === 0) {
-      showCelebration(streak + " in a row!", "You're on fire! Keep going!");
+      showCelebration(streak + " in a row! 🔥", "You're on fire! Keep going!");
     }
   } else {
     if (btn) btn.classList.add("wrong");
     document.querySelectorAll("#quiz-options button").forEach(b => {
       if (b.textContent === correctAnswer) b.classList.add("correct");
     });
-    feedback.textContent = btn ? "It's " + correctAnswer : "Time's up! It's " + correctAnswer;
+    feedback.textContent = btn ? "The answer is " + correctAnswer : "Time's up! It's " + correctAnswer;
     feedback.style.color = "var(--red)";
     updateStreak(false);
+    if (itemName) recordMistake(itemName);
+    saveProgress();
   }
 
   document.getElementById("quiz-score").textContent =
@@ -1221,6 +1508,152 @@ function endSpeed() {
   }
 }
 
+// ===== WRITE MODE =====
+let writeCorrect = 0;
+let writeTotal = 0;
+let writeAnswered = false;
+let writeCategory = "letters";
+let writeCurrentItem = null;
+
+function setWriteCategory(cat) {
+  writeCategory = cat;
+  writeCorrect = 0;
+  writeTotal = 0;
+  setActiveTab("write-tabs", event.target);
+  nextWrite();
+}
+
+function initWrite() {
+  writeCorrect = 0;
+  writeTotal = 0;
+  nextWrite();
+}
+
+function nextWrite() {
+  writeAnswered = false;
+  document.getElementById("write-feedback").textContent = "";
+  document.getElementById("write-next").classList.add("hidden");
+
+  const data = writeCategory === "vowels" ? vowels : letters;
+  const idx = weightedPick(data);
+  writeCurrentItem = data[idx];
+
+  const prompt = document.getElementById("write-prompt");
+  if (writeCategory === "vowels") {
+    prompt.textContent = writeCurrentItem.name + " — " + writeCurrentItem.sound;
+  } else {
+    prompt.textContent = writeCurrentItem.name + " (" + writeCurrentItem.sound + ")";
+  }
+
+  document.getElementById("write-score").textContent =
+    "Correct: " + writeCorrect + " / " + writeTotal;
+
+  const grid = document.getElementById("write-grid");
+  grid.innerHTML = "";
+
+  const shuffled = shuffle([...data]);
+  shuffled.forEach(item => {
+    const card = document.createElement("div");
+    card.className = "write-card";
+    card.textContent = item.letter;
+    card.title = item.name;
+    card.onclick = () => handleWriteAnswer(card, item.name === writeCurrentItem.name);
+    grid.appendChild(card);
+  });
+}
+
+function handleWriteAnswer(card, isCorrect) {
+  if (writeAnswered) return;
+  writeAnswered = true;
+  writeTotal++;
+
+  const feedback = document.getElementById("write-feedback");
+
+  if (isCorrect) {
+    writeCorrect++;
+    writeCorrectTotal++;
+    card.classList.add("correct");
+    feedback.textContent = "Yes! That's " + writeCurrentItem.name + "! ✓";
+    feedback.style.color = "var(--green)";
+    if (difficulty === "hard") earnedBadges.add("hard_correct");
+    updateScore(10);
+    updateStreak(true);
+    recordCorrect(writeCurrentItem.name);
+  } else {
+    card.classList.add("wrong");
+    // Highlight the correct one
+    document.querySelectorAll(".write-card").forEach(c => {
+      if (c.textContent === writeCurrentItem.letter) c.classList.add("correct");
+    });
+    feedback.textContent = "Not quite — " + writeCurrentItem.name + " is " + writeCurrentItem.letter;
+    feedback.style.color = "var(--red)";
+    updateStreak(false);
+    recordMistake(writeCurrentItem.name);
+  }
+
+  document.getElementById("write-score").textContent =
+    "Correct: " + writeCorrect + " / " + writeTotal;
+
+  // Disable all cards
+  document.querySelectorAll(".write-card").forEach(c => c.onclick = null);
+
+  setTimeout(() => {
+    document.getElementById("write-next").classList.remove("hidden");
+  }, isCorrect ? 500 : 1400);
+}
+
+// ===== PROGRESS MODE =====
+function showProgress() {
+  const xpNeeded = level * XP_PER_LEVEL;
+  const pct = Math.min(100, (xp / xpNeeded) * 100);
+  const title = LEVEL_TITLES[Math.min(level - 1, LEVEL_TITLES.length - 1)];
+
+  document.getElementById("prog-level-title").textContent = "Level " + level + " — " + title;
+  document.getElementById("prog-xp-text").textContent = xp + " / " + xpNeeded + " XP";
+  document.getElementById("prog-streak-text").textContent = "🔥 Daily Streak: " + dailyStreak;
+  document.getElementById("prog-xp-bar").style.width = pct + "%";
+
+  // Render badges
+  const grid = document.getElementById("badge-grid");
+  grid.innerHTML = "";
+  BADGES.forEach(b => {
+    const earned = earnedBadges.has(b.id);
+    const div = document.createElement("div");
+    div.className = "badge-item" + (earned ? " earned" : "");
+    div.innerHTML = `<div class="badge-icon">${earned ? b.icon : "🔒"}</div>
+      <div class="badge-name">${b.name}</div>
+      <div class="badge-desc">${b.desc}</div>`;
+    grid.appendChild(div);
+  });
+
+  // Render weak spots
+  const list = document.getElementById("weak-list");
+  list.innerHTML = "";
+  const allData = [...letters, ...vowels, ...words];
+  const sorted = Object.entries(mistakes)
+    .filter(([, v]) => v >= 1)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 8);
+
+  if (sorted.length === 0) {
+    list.innerHTML = "<p style='color:#888;text-align:center;padding:16px'>No weak spots yet — keep practicing!</p>";
+    return;
+  }
+
+  const maxCount = sorted[0][1];
+  sorted.forEach(([name, count]) => {
+    const item = allData.find(i => i.name === name);
+    const barPct = Math.round((count / maxCount) * 100);
+    const div = document.createElement("div");
+    div.className = "weak-item";
+    div.innerHTML = `<span class="weak-letter">${item ? item.letter : "?"}</span>
+      <span class="weak-name">${name}</span>
+      <div class="weak-bar-wrap"><div class="weak-bar" style="width:${barPct}%"></div></div>
+      <span style="color:var(--red);font-weight:700;font-size:0.9rem">${Math.ceil(count)}</span>`;
+    list.appendChild(div);
+  });
+}
+
 // ===== CELEBRATION =====
 function showCelebration(title, text) {
   const stars = ["\u2B50", "\u2B50\u2B50", "\u2B50\u2B50\u2B50", "\uD83C\uDF1F", "\uD83C\uDFC6", "\uD83C\uDF89"];
@@ -1244,6 +1677,7 @@ document.addEventListener("keydown", (e) => {
 });
 
 // Initialize
+loadProgress();
 initFlashcards();
 </script>
 
